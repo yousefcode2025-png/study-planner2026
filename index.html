@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Study Planner</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom Configuration for Tailwind Font */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        
+        :root {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* --- Custom CSS for Task Card Aesthetics --- */
+        .task {
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 5px solid #ccc; 
+            transition: transform 0.2s, box-shadow 0.2s;
+            background: #fff;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            width: 100%;
+        }
+
+        .task:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        /* Priority Styling */
+        .task.low {
+            border-left-color: #5cb85c; /* Green */
+        }
+
+        .task.med {
+            border-left-color: #f0ad4e; /* Orange */
+        }
+
+        .task.high {
+            border-left-color: #d9534f; /* Red */
+        }
+
+        /* Completed Task Styling */
+        .task.completed {
+            opacity: 0.6;
+            background: #f0f0f0;
+            text-decoration: line-through;
+        }
+
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .task-header h3 {
+            margin: 0;
+            font-size: 20px;
+        }
+
+        .task-subject {
+            font-size: 14px;
+            padding: 3px 8px;
+            border-radius: 5px;
+            background: #e9ecef;
+            color: #495057;
+        }
+
+        .task-description {
+            margin: 10px 0;
+            color: #555;
+        }
+
+        .task-footer {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            color: #777;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed #eee;
+        }
+
+        .task-actions {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .task-actions button {
+            width: auto;
+            padding: 5px 10px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            transition: background 0.2s;
+        }
+
+        /* Action Button Styles */
+        .action-complete {
+            background: #007bff;
+            color: white;
+        }
+        .action-complete:hover {
+            background: #0056b3;
+        }
+        .action-delete {
+            background: #dc3545;
+            color: white;
+        }
+        .action-delete:hover {
+            background: #bd2130;
+        }
+        .action-edit {
+            background: #17a2b8; /* Info color, a nice blue/cyan */
+            color: white;
+        }
+        .action-edit:hover {
+            background: #117a8b;
+        }
+
+        /* Checklist specific styles */
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+            font-style: italic;
+        }
+        .checklist-item input[type="checkbox"] {
+            width: auto;
+            margin-right: 8px;
+            cursor: default;
+        }
+
+        /* New CSS class to hide the edit form initially */
+        .hidden {
+            display: none !important;
+        }
+        /* Highlight the task currently being edited */
+        .task.editing {
+            box-shadow: 0 0 10px 3px rgba(0, 123, 255, 0.5); /* Blue glow */
+            border-color: #007bff; /* Blue border to match save button */
+        }
+        
+        /* Edit Form Action Buttons */
+        #edit-form-container button {
+            margin-right: 10px;
+            margin-top: 10px;
+        }
+        #edit-form-container .action-save {
+            background: #28a745; /* Green */
+            color: white;
+        }
+        #edit-form-container .action-save:hover {
+            background: #1e7e34;
+        }
+        #edit-form-container .action-cancel {
+            background: #6c757d; /* Gray */
+            color: white;
+        }
+        #edit-form-container .action-cancel:hover {
+            background: #5a6268;
+        }
+
+        /* Style for the visual input wrappers (The Mobile Visibility Fix) */
+        .date-time-wrapper {
+            display: flex;
+            flex-direction: column; /* Stack label and input */
+            padding: 8px;
+            border: 1px solid #d1d5db; /* gray-300 */
+            border-radius: 8px;
+            background-color: #eff6ff; /* blue-50 */
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            min-height: 50px; /* Ensures a large touch target */
+        }
+        .date-time-label {
+            font-size: 12px;
+            color: #4b5563; /* gray-700 */
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        /* Hide the browser's default placeholder text if the value is not set */
+        .date-time-input {
+            /* Force the input itself to have minimal styling inside the wrapper */
+            width: 100%;
+            background: transparent;
+            border: none;
+            padding: 0;
+        }
+        .date-time-input[value=""] {
+            color: #a1a1aa; /* A lighter color for placeholder effect */
+        }
+
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen p-4 sm:p-8">
+
+    <h1 class="text-4xl font-extrabold text-center text-gray-800 mb-8">
+        📚 Study Planner
+    </h1>
+
+    <div class="max-w-7xl mx-auto flex flex-col lg:flex-row gap-8">
+
+        <!-- Add Task Form (Left Side) -->
+        <div class="w-full lg:w-1/3 p-6 bg-white rounded-xl shadow-lg h-fit border-t-4 border-blue-500">
+            <div class="form space-y-4">
+                <h2 class="text-2xl font-semibold text-gray-700 border-b pb-2">Add New Task</h2>
+
+                <!-- Validation Message Container -->
+                <div id="validation-message" class="hidden p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+                    Please fill in the **Task Title**, select a **Date**, and select a **Time**.
+                </div>
+
+                <input type="text" id="task-title" placeholder="Task title (e.g., Chapter 3 Quiz)" 
+                       class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+
+                <textarea id="task-desc" placeholder="Description (use ; for checklist items)" rows="3"
+                          class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"></textarea>
+
+                <!-- Date and Time Inputs (The Mobile Fix) -->
+                <div class="flex space-x-2 my-2">
+                    <!-- Date Input -->
+                    <div class="date-time-wrapper w-1/2">
+                        <label for="task-date" class="date-time-label">Due Date</label>
+                        <input type="date" id="task-date" class="date-time-input">
+                    </div>
+                    
+                    <!-- Time Input -->
+                    <div class="date-time-wrapper w-1/2">
+                        <label for="task-time" class="date-time-label">Due Time</label>
+                        <input type="time" id="task-time" class="date-time-input">
+                    </div>
+                </div>
+
+                <select id="task-priority" 
+                        class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-blue-500 focus:border-blue-500">
+                    <option value="low">Low priority</option>
+                    <option value="med" selected>Medium priority</option>
+                    <option value="high">High priority</option>
+                </select>
+
+                <input type="text" id="task-subject" placeholder="Subject (e.g., Calculus, History)"
+                       class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+
+                <button id="add-task" 
+                        class="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition duration-150 shadow-md">
+                    Add Task
+                </button>
+            </div>
+        </div>
+
+        <!-- Tasks Container (Right Side) -->
+        <div class="w-full lg:w-2/3 p-6 bg-white rounded-xl shadow-lg border-t-4 border-gray-400">
+            <div class="tasks-container space-y-6">
+                <h2 class="text-2xl font-semibold text-gray-700 border-b pb-2">Your Tasks</h2>
+                
+                <!-- Search Input -->
+                <input type="text" id="search" placeholder="Search tasks by title, subject, or description..."
+                       class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                
+                <!-- Dynamic Edit Form Container (Hidden initially) -->
+                <div id="edit-form-container" class="form hidden p-4 bg-blue-50 border border-blue-200 rounded-lg shadow-inner space-y-3">
+                    <!-- Edit form content will be injected here -->
+                </div>
+
+                <!-- Task List -->
+                <div id="tasks" class="space-y-4">
+                    <!-- Tasks will be rendered here -->
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Selectors ---
+            const taskTitleInput = document.getElementById('task-title');
+            const taskDescInput = document.getElementById('task-desc');
+            const taskDateInput = document.getElementById('task-date'); 
+            const taskTimeInput = document.getElementById('task-time');
+            const taskPrioritySelect = document.getElementById('task-priority');
+            const taskSubjectInput = document.getElementById('task-subject');
+            const addTaskButton = document.getElementById('add-task');
+            const tasksContainer = document.getElementById('tasks');
+            const searchInput = document.getElementById('search');
+            const editFormContainer = document.getElementById('edit-form-container');
+            const validationMessage = document.getElementById('validation-message'); 
+
+            // --- Data Storage (Using localStorage for persistence) ---
+            let tasks = JSON.parse(localStorage.getItem('studyPlannerTasks')) || [];
+            let editingTaskId = null; // Track which task is currently being edited
+
+            // --- Event Listeners ---
+            addTaskButton.addEventListener('click', addTask);
+            searchInput.addEventListener('input', renderTasks);
+            tasksContainer.addEventListener('click', handleTaskActions);
+            editFormContainer.addEventListener('click', handleEditFormActions);
+
+            // --- Core Functions ---
+
+            /**
+             * Saves the current tasks array to localStorage.
+             */
+            function saveTasks() {
+                localStorage.setItem('studyPlannerTasks', JSON.stringify(tasks));
+            }
+
+            /**
+             * Creates a new task object from the form input and adds it to the tasks array.
+             */
+            function addTask() {
+                // Hide validation message and edit form
+                validationMessage.classList.add('hidden');
+                hideEditForm(); 
+
+                const title = taskTitleInput.value.trim();
+                const description = taskDescInput.value.trim();
+                const date = taskDateInput.value;
+                const time = taskTimeInput.value;
+                const priority = taskPrioritySelect.value;
+                const subject = taskSubjectInput.value.trim();
+
+                console.log('--- Attempting to Add Task ---');
+                console.log(`Title: "${title}"`);
+                console.log(`Date: "${date}"`);
+                console.log(`Time: "${time}"`);
+
+                if (!title || !date || !time) {
+                    // Show validation message visibly
+                    validationMessage.classList.remove('hidden');
+                    console.error('Validation failed: Title, Date, or Time is missing.');
+                    return;
+                }
+                
+                // Combine date and time for the dueDate object property in ISO format
+                const dueDate = `${date}T${time}`;
+
+                const newTask = {
+                    id: Date.now(),
+                    title,
+                    description,
+                    dueDate,
+                    priority,
+                    subject,
+                    completed: false,
+                    createdAt: new Date().toISOString()
+                };
+
+                tasks.push(newTask);
+                saveTasks();
+                renderTasks();
+                clearForm();
+                console.log('Task successfully added:', newTask.title);
+            }
+
+            /**
+             * Clears the input fields after a task is added.
+             */
+            function clearForm() {
+                taskTitleInput.value = '';
+                taskDescInput.value = '';
+                taskDateInput.value = '';
+                taskTimeInput.value = '';
+                taskPrioritySelect.value = 'med'; // Reset to default
+                taskSubjectInput.value = '';
+                validationMessage.classList.add('hidden'); // Clear message on success
+            }
+
+            /**
+             * Renders the filtered/all tasks to the DOM.
+             */
+            function renderTasks() {
+                tasksContainer.innerHTML = '';
+                const searchTerm = searchInput.value.toLowerCase();
+
+                const filteredTasks = tasks.filter(task => {
+                    return (
+                        task.title.toLowerCase().includes(searchTerm) ||
+                        task.subject.toLowerCase().includes(searchTerm) ||
+                        task.description.toLowerCase().includes(searchTerm)
+                    );
+                }).sort((a, b) => {
+                    // Sort by completion status (incomplete first), then by due date (earlier first)
+                    if (a.completed !== b.completed) {
+                        return a.completed ? 1 : -1;
+                    }
+                    return new Date(a.dueDate) - new Date(b.dueDate);
+                });
+
+                if (filteredTasks.length === 0) {
+                    tasksContainer.innerHTML = `<p class="text-center text-gray-500 p-4">No tasks found. Try adding a new one!</p>`;
+                    return;
+                }
+
+                filteredTasks.forEach(task => {
+                    const taskElement = createTaskElement(task);
+                    tasksContainer.appendChild(taskElement);
+                });
+            }
+
+            /**
+             * Creates the HTML structure for a single task.
+             * @param {object} task - The task object.
+             * @returns {HTMLElement} The task div element.
+             */
+            function createTaskElement(task) {
+                const taskDiv = document.createElement('div');
+                const isEditing = editingTaskId === task.id ? 'editing' : ''; 
+                taskDiv.className = `task ${task.priority} ${task.completed ? 'completed' : ''} ${isEditing}`;
+                taskDiv.dataset.taskId = task.id;
+
+                const priorityLabel = task.priority.charAt(0).toUpperCase() + task.priority.slice(1);
+                
+                let formattedDate = 'N/A';
+                try {
+                    formattedDate = new Date(task.dueDate).toLocaleString();
+                } catch (e) {
+                    console.error("Invalid date for task:", task.title);
+                }
+
+                let descriptionContent = '';
+                if (task.description) {
+                    if (task.description.includes(';')) {
+                        const checklistItems = task.description.split(';').map(item => item.trim()).filter(item => item);
+                        const checklistHtml = checklistItems.map(item => `
+                            <div class="checklist-item">
+                                <input type="checkbox" disabled ${task.completed ? 'checked' : ''}>
+                                <label>${item}</label>
+                            </div>
+                        `).join('');
+                        descriptionContent = `<div class="task-description checklist">${checklistHtml}</div>`;
+                    } else {
+                        descriptionContent = `<p class="task-description">${task.description}</p>`;
+                    }
+                }
+
+                taskDiv.innerHTML = `
+                    <div class="task-header">
+                        <h3>${task.title}</h3>
+                        <span class="task-subject">${task.subject || 'General'}</span>
+                    </div>
+                    ${descriptionContent}
+                    <div class="task-footer">
+                        <span class="task-priority">Priority: <strong>${priorityLabel}</strong></span>
+                        <span class="task-due-date">Due: ${formattedDate}</span>
+                    </div>
+                    <div class="task-actions">
+                        <button class="action-complete" data-action="toggle">${task.completed ? 'Unmark' : 'Complete'}</button>
+                        <button class="action-edit" data-action="edit">Edit</button>
+                        <button class="action-delete" data-action="delete">Delete</button>
+                    </div>
+                `;
+
+                return taskDiv;
+            }
+
+            /**
+             * Handles clicks on the Complete/Unmark, Edit, and Delete buttons.
+             * @param {Event} e - The click event.
+             */
+            function handleTaskActions(e) {
+                const target = e.target;
+                const taskElement = target.closest('.task');
+                const taskId = parseInt(taskElement?.dataset.taskId);
+
+                if (!taskId) return;
+
+                const taskIndex = tasks.findIndex(task => task.id === taskId);
+                if (taskIndex === -1) return;
+
+                const action = target.dataset.action;
+
+                if (action === 'toggle') {
+                    tasks[taskIndex].completed = !tasks[taskIndex].completed;
+                    saveTasks();
+                    renderTasks();
+                } else if (action === 'delete') {
+                    // Use a simple prompt as a substitute for a confirmation modal
+                    if (window.confirm(`Are you sure you want to delete "${tasks[taskIndex].title}"?`)) {
+                        if (taskId === editingTaskId) {
+                            hideEditForm();
+                        }
+                        tasks.splice(taskIndex, 1);
+                        saveTasks();
+                        renderTasks();
+                    }
+                } else if (action === 'edit') { 
+                    showEditForm(tasks[taskIndex]);
+                    clearForm();
+                }
+            }
+
+            /**
+             * Shows and populates the edit form for a specific task.
+             * @param {object} task - The task object to edit.
+             */
+            function showEditForm(task) {
+                editingTaskId = task.id; 
+                editFormContainer.classList.remove('hidden');
+
+                // Split the existing dueDate (ISO format: YYYY-MM-DDTHH:MM)
+                const [datePart, timePart] = task.dueDate ? task.dueDate.split('T') : ['', ''];
+                
+                // Dynamically create the edit form HTML
+                editFormContainer.innerHTML = `
+                    <h2 class="text-xl font-medium text-blue-700">Editing: ${task.title}</h2>
+
+                    <input type="text" id="edit-task-title" placeholder="Task title" value="${task.title}"
+                           class="w-full p-2 border border-gray-300 rounded-lg">
+
+                    <textarea id="edit-task-desc" placeholder="Description (use ; for checklist)" rows="2"
+                              class="w-full p-2 border border-gray-300 rounded-lg">${task.description}</textarea>
+
+                    <!-- Date and Time Inputs (The Mobile Fix in Edit Form) -->
+                    <div class="flex space-x-2">
+                        <!-- Date Input -->
+                        <div class="date-time-wrapper w-1/2">
+                            <label for="edit-task-date" class="date-time-label">Due Date</label>
+                            <input type="date" id="edit-task-date" value="${datePart}"
+                                class="date-time-input">
+                        </div>
+                        
+                        <!-- Time Input -->
+                        <div class="date-time-wrapper w-1/2">
+                            <label for="edit-task-time" class="date-time-label">Due Time</label>
+                            <input type="time" id="edit-task-time" value="${timePart}"
+                                class="date-time-input">
+                        </div>
+                    </div>
+
+                    <select id="edit-task-priority"
+                            class="w-full p-2 border border-gray-300 rounded-lg bg-white">
+                        <option value="low" ${task.priority === 'low' ? 'selected' : ''}>Low priority</option>
+                        <option value="med" ${task.priority === 'med' ? 'selected' : ''}>Medium priority</option>
+                        <option value="high" ${task.priority === 'high' ? 'selected' : ''}>High priority</option>
+                    </select>
+
+                    <input type="text" id="edit-task-subject" placeholder="Subject" value="${task.subject}"
+                           class="w-full p-2 border border-gray-300 rounded-lg">
+
+                    <div class="flex justify-end pt-2">
+                        <button class="action-save py-2 px-4 rounded-lg font-semibold" data-action="save">Save Changes</button>
+                        <button class="action-cancel py-2 px-4 rounded-lg font-semibold" data-action="cancel">Cancel</button>
+                    </div>
+                `;
+
+                renderTasks(); 
+            }
+
+            /**
+             * Hides the edit form and resets the editing state.
+             */
+            function hideEditForm() {
+                editingTaskId = null;
+                editFormContainer.classList.add('hidden');
+                editFormContainer.innerHTML = '';
+                renderTasks(); 
+            }
+
+            /**
+             * Handles clicks within the edit form (Save/Cancel).
+             * @param {Event} e - The click event.
+             */
+            function handleEditFormActions(e) {
+                const action = e.target.dataset.action;
+                
+                if (action === 'save') {
+                    const taskIndex = tasks.findIndex(task => task.id === editingTaskId);
+                    if (taskIndex === -1) return;
+
+                    // Retrieve new values from the edit form inputs
+                    const newTitle = document.getElementById('edit-task-title').value.trim();
+                    const newDesc = document.getElementById('edit-task-desc').value.trim();
+                    const newDate = document.getElementById('edit-task-date').value;
+                    const newTime = document.getElementById('edit-task-time').value;
+                    const newPriority = document.getElementById('edit-task-priority').value;
+                    const newSubject = document.getElementById('edit-task-subject').value.trim();
+
+                    if (!newTitle || !newDate || !newTime) {
+                        console.error('Task title, date, and time cannot be empty.');
+                        return;
+                    }
+
+                    const newDue = `${newDate}T${newTime}`;
+                    
+                    // Update the task object
+                    tasks[taskIndex].title = newTitle;
+                    tasks[taskIndex].description = newDesc;
+                    tasks[taskIndex].dueDate = newDue;
+                    tasks[taskIndex].priority = newPriority;
+                    tasks[taskIndex].subject = newSubject;
+                    
+                    saveTasks();
+                    hideEditForm();
+                    clearForm(); 
+                } else if (action === 'cancel') {
+                    hideEditForm();
+                }
+            }
+
+            // --- Initial Load ---
+            renderTasks();
+        });
+    </script>
+</body>
+</html>
